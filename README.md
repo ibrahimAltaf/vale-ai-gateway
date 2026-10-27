@@ -4,7 +4,7 @@
 
 Live HTTPS preview: [https://vale.191-215-35-197.sslip.io](https://vale.191-215-35-197.sslip.io)
 
-Client briefing with platform screenshots: [docs/Vale-AI-Gateway-Demo.pdf](docs/Vale-AI-Gateway-Demo.pdf)
+Client briefing with platform screenshots: [docs/Vale-Gateway-Client-Brief.pdf](docs/Vale-Gateway-Client-Brief.pdf)
 
 Ask the project owner for operator sign-in. Credentials are not published here.
 
@@ -29,6 +29,7 @@ The operator console is blue and white. Every page carries a demonstration notic
 | --- | --- |
 | ![Sign in](docs/client-preview/01-login.png) | Sign-in and the demonstration notice |
 | ![Overview](docs/client-preview/02-overview.png) | Dashboard of volume, savings and health |
+| ![Overview lower](docs/client-preview/02-overview-lower.png) | Activity, recent requests and the request path |
 | ![Requests](docs/client-preview/04-requests.png) | Metadata-only traces |
 | ![Health](docs/client-preview/09-health.png) | Core services vs unconfigured providers |
 | ![Architecture](docs/client-preview/10-architecture.png) | Backend request path |

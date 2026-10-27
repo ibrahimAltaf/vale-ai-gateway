@@ -40,6 +40,8 @@ yarn-error.log*
 scripts/_vps_*.py
 test-results/
 playwright-report/
+docs/client-preview/_pdf-check/
+docs/client-preview/_embed/
 
 # vercel
 .vercel

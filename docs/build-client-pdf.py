@@ -1,32 +1,43 @@
 from pathlib import Path
 
-from reportlab.lib.colors import HexColor, white
+from PIL import Image as PILImage
+from reportlab.lib.colors import HexColor
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Image, KeepTogether, ListFlowable, ListItem, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (
+    Image,
+    ListFlowable,
+    ListItem,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 ROOT = Path(__file__).resolve().parent
 PREVIEW = ROOT / "client-preview"
 OUT = ROOT / "Vale-AI-Gateway-Demo.pdf"
+FALLBACK = ROOT / "Vale-Gateway-Client-Brief.pdf"
 
 BLUE = HexColor("#1d4ed8")
 NAVY = HexColor("#0b1f3d")
 MUTED = HexColor("#4a6280")
-LINE = HexColor("#d4e2f2")
 WASH = HexColor("#eef4fb")
-RAISED = HexColor("#f3f7fd")
 
 SHOTS = [
     ("01-login.png", "Sign-in", "Operator console login. The demonstration notice is shown before anyone enters the product."),
-    ("02-overview.png", "Overview", "Live dashboard: request volume, savings, health strip and the request path."),
+    ("02-overview.png", "Overview", "Live dashboard: request volume, savings and health."),
+    ("02-overview-lower.png", "Overview, continued", "Activity, recent requests and the request path."),
     ("03-playground.png", "Playground", "Frontend console for a live completion against the backend gateway."),
     ("04-requests.png", "Requests / traces", "Metadata-only request log. Prompt text and NHS numbers are not stored here."),
     ("05-privacy.png", "Privacy", "UK PII screening. If privacy cannot run, the provider is not contacted."),
     ("06-cache.png", "Cache lab", "Exact cache behaviour. Semantic cache is planned, not claimed as live."),
     ("07-organisations.png", "Organisations", "Tenant list. Each organisation has its own keys, budget and provider set."),
-    ("13-create-app.png", "Create app", "Seven-step onboarding: details, providers, privacy, budget, API key, integration, test."),
+    ("13-create-app.png", "Create app", "Onboarding: details, providers, privacy, budget, API key, integration, test."),
     ("08-savings.png", "Savings", "Verified cache savings only. Planned routing savings are labelled as planned."),
     ("09-health.png", "Health", "Core services and AI providers. Missing keys show as not configured, not as healthy."),
     ("10-architecture.png", "Architecture", "The path a production request is designed to keep."),
@@ -38,17 +49,15 @@ SHOTS = [
 def styles():
     base = getSampleStyleSheet()
     return {
-        "cover_kicker": ParagraphStyle("cover_kicker", parent=base["Normal"], textColor=BLUE, fontName="Helvetica-Bold", fontSize=11, tracking=1, alignment=TA_CENTER),
+        "cover_kicker": ParagraphStyle("cover_kicker", parent=base["Normal"], textColor=BLUE, fontName="Helvetica-Bold", fontSize=11, alignment=TA_CENTER),
         "cover_title": ParagraphStyle("cover_title", parent=base["Title"], textColor=NAVY, fontName="Helvetica-Bold", fontSize=28, leading=34, alignment=TA_CENTER, spaceAfter=10),
         "cover_sub": ParagraphStyle("cover_sub", parent=base["Normal"], textColor=MUTED, fontSize=12, leading=18, alignment=TA_CENTER),
         "h1": ParagraphStyle("h1", parent=base["Heading1"], textColor=NAVY, fontName="Helvetica-Bold", fontSize=18, leading=22, spaceBefore=4, spaceAfter=10),
-        "h2": ParagraphStyle("h2", parent=base["Heading2"], textColor=BLUE, fontName="Helvetica-Bold", fontSize=13, leading=17, spaceBefore=12, spaceAfter=6),
+        "h2": ParagraphStyle("h2", parent=base["Heading2"], textColor=BLUE, fontName="Helvetica-Bold", fontSize=13, leading=17, spaceBefore=8, spaceAfter=6),
         "body": ParagraphStyle("body", parent=base["Normal"], textColor=NAVY, fontSize=10.5, leading=15, alignment=TA_JUSTIFY, spaceAfter=8),
         "bullet": ParagraphStyle("bullet", parent=base["Normal"], textColor=NAVY, fontSize=10.5, leading=15),
-        "caption": ParagraphStyle("caption", parent=base["Normal"], textColor=MUTED, fontSize=9.5, leading=13, spaceBefore=4, spaceAfter=12),
+        "caption": ParagraphStyle("caption", parent=base["Normal"], textColor=MUTED, fontSize=9.5, leading=13, spaceBefore=6, spaceAfter=0),
         "warn": ParagraphStyle("warn", parent=base["Normal"], textColor=NAVY, fontSize=11, leading=16, alignment=TA_LEFT),
-        "footer": ParagraphStyle("footer", parent=base["Normal"], textColor=MUTED, fontSize=8, alignment=TA_CENTER),
-        "small": ParagraphStyle("small", parent=base["Normal"], textColor=MUTED, fontSize=9, leading=12),
     }
 
 
@@ -65,19 +74,19 @@ def header_footer(canvas, doc):
     canvas.restoreState()
 
 
-def shot(path: Path, caption: str, sty) -> list:
-    if not path.exists():
-        return [Paragraph(f"Screenshot missing: {path.name}", sty["caption"])]
-    width = 170 * mm
-    img = Image(str(path))
-    img.drawWidth = width
-    img.drawHeight = width * (img.imageHeight / img.imageWidth)
-    max_h = 150 * mm
-    if img.drawHeight > max_h:
-        scale = max_h / img.drawHeight
-        img.drawWidth *= scale
-        img.drawHeight *= scale
-    return [img, Paragraph(caption, sty["caption"])]
+def screenshot_flowable(path: Path):
+    embed_dir = PREVIEW / "_embed"
+    embed_dir.mkdir(exist_ok=True)
+    image = PILImage.open(path).convert("RGB")
+    jpeg = embed_dir / (path.stem + ".jpg")
+    image.save(jpeg, format="JPEG", quality=92, optimize=True)
+    max_w, max_h = 170 * mm, 208 * mm
+    width, height = image.size
+    scale = min(max_w / width, max_h / height)
+    flowable = Image(str(jpeg))
+    flowable.drawWidth = width * scale
+    flowable.drawHeight = height * scale
+    return flowable
 
 
 def bullets(items, sty):
@@ -102,14 +111,12 @@ def build():
         sty["cover_sub"],
     ))
     story.append(Spacer(1, 12 * mm))
-    notice = [
-        [Paragraph(
-            "<b>Please read this first.</b><br/><br/>"
-            "This is a demonstration. A working slice of the platform is live so you can click through the console and see the request path. "
-            "A large amount of product work is still remaining. Treat this as a preview, not a finished commercial platform, and do not plan go-live dates from this build alone.",
-            sty["warn"],
-        )]
-    ]
+    notice = [[Paragraph(
+        "<b>Please read this first.</b><br/><br/>"
+        "This is a demonstration. A working slice of the platform is live so you can click through the console and see the request path. "
+        "A large amount of product work is still remaining. Treat this as a preview, not a finished commercial platform, and do not plan go-live dates from this build alone.",
+        sty["warn"],
+    )]]
     table = Table(notice, colWidths=[170 * mm])
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), HexColor("#dbe7ff")),
@@ -122,7 +129,7 @@ def build():
     story.append(table)
     story.append(Spacer(1, 10 * mm))
     story.append(Paragraph("Live preview: https://vale.191-215-35-197.sslip.io", sty["cover_sub"]))
-    story.append(Paragraph("Public source: see the GitHub repository README in this project.", sty["cover_sub"]))
+    story.append(Paragraph("Public source: https://github.com/ibrahimAltaf/vale-ai-gateway", sty["cover_sub"]))
     story.append(PageBreak())
 
     story.append(Paragraph("1. What this preview is", sty["h1"]))
@@ -147,12 +154,12 @@ def build():
     story.append(bullets([
         "<b>Overview</b> — dashboard of request volume, savings and gateway status.",
         "<b>Playground</b> — send a live completion through the same backend path a client API would use.",
-        "<b>Requests</b> — trace list and detail. Metadata only.",
+        "<b>Requests</b> — trace list and detail (metadata only).",
         "<b>Privacy</b> — inspect how UK PII is detected and tokenised.",
-        "<b>Cache lab</b> — exact cache behaviour. Semantic cache is not shipped.",
-        "<b>Organisations / Create app</b> — tenant onboarding, keys, budget, provider selection.",
-        "<b>Savings</b> — verified cache savings; routing savings marked planned.",
-        "<b>Health</b> — Postgres, Redis, privacy engine, and each AI provider.",
+        "<b>Cache lab</b> — exact cache. Semantic cache is planned.",
+        "<b>Organisations / Create app</b> — tenant onboarding, keys, budget, providers.",
+        "<b>Savings</b> — verified cache savings only.",
+        "<b>Health</b> — Postgres, Redis, privacy, provider configuration.",
         "<b>Architecture / Engineering / Settings</b> — system map, remaining work, operator configuration.",
     ], sty))
 
@@ -174,8 +181,7 @@ def build():
     ], sty))
     story.append(Paragraph(
         "Postgres holds tenants, hashed keys, request metadata, the ledger and audit events. "
-        "Redis holds the exact cache. The live VPS process is attached to those stores. "
-        "Provider keys are not configured in this demonstration, so Health reports them as not configured rather than inventing a successful model call.",
+        "Redis holds the exact cache. Provider keys are not configured in this demonstration, so Health reports them as not configured rather than inventing a successful model call.",
         sty["body"],
     ))
 
@@ -190,10 +196,6 @@ def build():
         "<b>Audit:</b> metadata-only events so a reviewer can see that a request happened without reading the user's words.",
         "<b>Console session:</b> httpOnly cookie, 12-hour life, Secure on HTTPS. Login is rate-limited.",
     ], sty))
-    story.append(Paragraph(
-        "If a future production environment adds CloudWatch or another log drain, the same rule applies: request id and operational fields only.",
-        sty["body"],
-    ))
 
     story.append(Paragraph("5. Done in this demonstration vs still remaining", sty["h1"]))
     story.append(Paragraph("Present in this build", sty["h2"]))
@@ -210,28 +212,25 @@ def build():
     story.append(bullets([
         "Semantic cache.",
         "Model-routing savings.",
-        "Token-by-token provider streaming (today the stream is a lifecycle feed after the full restored response).",
-        "Multi-user console roles (org admin / viewer types exist; only the operator can sign in).",
-        "Provider credentials and a real customer domain.",
-        "Billing, SSO, alerting, SLA, and the remaining commercial product surface.",
+        "Token-by-token provider streaming.",
+        "Multi-user console accounts.",
+        "Provider credentials on the preview host.",
+        "A real customer domain, billing, SSO, alerting, SLA and the rest of a commercial launch.",
         "A substantial amount of design, hardening and feature work beyond this slice.",
     ], sty))
 
-    story.append(PageBreak())
-    story.append(Paragraph("6. Platform screenshots", sty["h1"]))
-    story.append(Paragraph(
-        "These captures are the current demonstration console. Read the demonstration notice on sign-in and in the sidebar on every page.",
-        sty["body"],
-    ))
-
     for filename, title, caption in SHOTS:
-        story.append(KeepTogether([
-            Paragraph(title, sty["h2"]),
-            Paragraph(caption, sty["body"]),
-            *shot(PREVIEW / filename, f"Figure — {title}", sty),
-        ]))
+        path = PREVIEW / filename
+        if not path.exists():
+            continue
+        story.append(PageBreak())
+        story.append(Paragraph(title, sty["h2"]))
+        story.append(Paragraph(caption, sty["body"]))
+        story.append(screenshot_flowable(path))
+        story.append(Paragraph(f"Figure — {title}", sty["caption"]))
 
-    story.append(Paragraph("7. How to review", sty["h1"]))
+    story.append(PageBreak())
+    story.append(Paragraph("How to review", sty["h1"]))
     story.append(bullets([
         "Open the HTTPS preview URL. The browser should show a lock, not Not secure.",
         "Ask the project owner for the operator sign-in. Credentials are not published in this file.",
@@ -245,8 +244,16 @@ def build():
     ))
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
+    target = OUT
+    try:
+        with OUT.open("ab"):
+            pass
+    except PermissionError:
+        target = FALLBACK
+        print("original PDF is open; writing", target.name)
+
     doc = SimpleDocTemplate(
-        str(OUT),
+        str(target),
         pagesize=A4,
         leftMargin=18 * mm,
         rightMargin=18 * mm,
@@ -257,7 +264,7 @@ def build():
         subject="Client demonstration of the Vale AI cost and privacy gateway",
     )
     doc.build(story, onFirstPage=header_footer, onLaterPages=header_footer)
-    print(OUT)
+    print(target)
 
 
 if __name__ == "__main__":

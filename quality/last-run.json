@@ -1,0 +1,42 @@
+{
+  "recordedAt": "2026-10-27T08:40:00+05:00",
+  "source": "local-verification",
+  "label": "Recorded from local commands on 27 October 2026. This is not a live CI badge.",
+  "commands": [
+    {
+      "name": "TypeScript strict",
+      "status": "pass",
+      "detail": "tsc --noEmit"
+    },
+    {
+      "name": "Lint",
+      "status": "pass",
+      "detail": "eslint"
+    },
+    {
+      "name": "Unit tests",
+      "status": "pass",
+      "detail": "vitest run — 5 files, 28 tests passed"
+    },
+    {
+      "name": "Tenant isolation tests",
+      "status": "pass",
+      "detail": "Covered in src/server/gateway/gateway.test.ts during that run"
+    },
+    {
+      "name": "PII safety tests",
+      "status": "pass",
+      "detail": "NHS modulus 11, masking, restoration, and log redaction"
+    },
+    {
+      "name": "Fail-closed tests",
+      "status": "pass",
+      "detail": "Privacy unavailable does not call the provider"
+    },
+    {
+      "name": "Build",
+      "status": "pass",
+      "detail": "next build"
+    }
+  ]
+}

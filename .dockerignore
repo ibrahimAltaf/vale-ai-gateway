@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.vercel
+.neon
+.env
+.env.local
+.env.*.local
+coverage
+playwright-report
+test-results
+scripts/_vps*
+*.md
+docs
+agent-transcripts
+.cursor
